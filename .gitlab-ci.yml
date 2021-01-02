@@ -1,0 +1,88 @@
+stages:
+  - build
+  - test
+  - package
+  - deploy
+
+variables:
+  # Maven
+  MAVEN_OPTS: -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=WARN -Dorg.slf4j.simpleLogger.showDateTime=true -Djava.awt.headless=true
+  # MAVEN_CONFIG: --batch-mode --errors --fail-at-end --show-version -DinstallAtEnd=true -DdeployAtEnd=true -s .mvn/settings.xml
+  MAVEN_CONFIG: --batch-mode --errors --fail-at-end --show-version -DinstallAtEnd=true -s .mvn/settings.xml
+  MAVEN_USER_HOME: .mvn/
+
+before_script:
+  - echo _auth=$(echo -n $ARTIFACTS_REPO_USERNAME:$ARTIFACTS_REPO_PASSWORD | base64) >> .npmrc
+
+
+
+Build with Maven:
+  stage: build
+  tags:
+    - alicloud
+  except:
+    variables:
+      - $CI_COMMIT_MESSAGE =~ /^Helm debug:\ .*/
+  cache:
+    paths:
+      - .mvn/wrapper/maven-wrapper.jar
+      - .mvn/wrapper/dists/
+      - .mvn/repository/
+  image: openjdk:8-stretch
+  script:
+    - chmod a+x ./mvnw
+    - ./mvnw -DskipTests=true clean install
+#  artifacts:
+#    paths:
+#      - caf-boot-parent/target/app.jar
+#    expire_in: 10d
+
+
+
+Run Java unit tests:
+  stage: test
+  tags:
+    - alicloud
+  except:
+    variables:
+      - $CI_COMMIT_MESSAGE =~ /^Helm debug:\ .*/
+  cache:
+    paths:
+      - .mvn/wrapper/maven-wrapper.jar
+      - .mvn/wrapper/dists/
+      - .mvn/repository/
+  services:
+    - name: redis:latest
+      alias: redis
+    - name: postgres:10
+      alias: postgres
+  image: openjdk:8-stretch
+  script:
+    - chmod a+x ./mvnw
+    - ./mvnw -U clean clover:setup test clover:aggregate clover:clover
+    - ./mvnw -Dmaven.clover.singleCloverDatabase=true clover:log
+  coverage: '/^ {8}Total\: (\d+%|\d+\.\d+%)/'
+  artifacts:
+    paths:
+      - target/site/clover
+    expire_in: 10d
+  dependencies: []
+
+
+Package:
+  stage: package
+  tags:
+    - alicloud
+  only:
+    - master
+    - tags
+  cache:
+    paths:
+      - .mvn/wrapper/maven-wrapper.jar
+      - .mvn/wrapper/dists/
+      - .mvn/repository/
+  image: openjdk:8-stretch
+  script:
+    - chmod a+x ./mvnw
+    - ./mvnw -DskipTests=true clean deploy
+

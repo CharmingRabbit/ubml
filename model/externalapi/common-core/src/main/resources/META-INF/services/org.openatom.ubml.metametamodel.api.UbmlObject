@@ -1,0 +1,4 @@
+org.openatom.ubml.metamodel.externalapi.common.core.UbmlExternalApiImpl
+org.openatom.ubml.metamodel.externalapi.common.core.UbmlExternalApiOperationImpl
+org.openatom.ubml.metamodel.externalapi.common.core.UbmlExternalApiParameterImpl
+org.openatom.ubml.metamodel.externalapi.common.core.UbmlExternalApiProviderImpl
